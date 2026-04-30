@@ -2,11 +2,11 @@ import express from "express";
 
 const app = express();
 
-const base = "http://94.156.59.233:8899/udp/239.10.2.";
-const port = ":30000";
+const base = "http://91.237.126.50:9001/udp/239.10.12.";
+const port = ":1234";
 
-const start = 150;
-const end = 200;
+const start = 1;
+const end = 100;
 
 let working = [];
 let scanning = false;
