@@ -6,7 +6,7 @@ const app = express();
 const base = "http://94.156.59.233:8899/udp/239.10.2.";
 const port = ":30000";
 
-const start = 150;
+const start = 100;
 const end = 200;
 
 // кеш
