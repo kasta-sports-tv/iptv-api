@@ -5,68 +5,61 @@ const app = express();
 const base = "http://94.156.59.233:8899/udp/239.10.2.";
 const port = ":30000";
 
-const start = 100;
+const start = 150;
 const end = 200;
 
-// кеш
 let working = [];
-let lastScan = 0;
+let scanning = false;
 
-// швидка перевірка
+// швидка перевірка (без зависання)
 async function check(url) {
   try {
-    const res = await fetch(url, { timeout: 4000 });
-    if (!res.ok || !res.body) return false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
 
-    const reader = res.body.getReader();
-    const { value } = await reader.read();
+    const res = await fetch(url, { signal: controller.signal });
 
-    return value && value.length > 1500;
+    clearTimeout(timeout);
+
+    return res.ok;
   } catch {
     return false;
   }
 }
 
-// 🔵 СКАНЕР (оновлює кеш)
-app.get("/scan", async (req, res) => {
-  const now = Date.now();
-
-  // щоб не сканило кожен раз
-  if (now - lastScan < 60000) {
-    return res.send({
-      status: "cached",
-      count: working.length
-    });
+// 🟢 НЕ блокує відповідь
+app.get("/scan", (req, res) => {
+  if (scanning) {
+    return res.json({ status: "already_scanning" });
   }
 
-  const newList = [];
+  scanning = true;
+  working = [];
 
-  for (let i = start; i <= end; i++) {
-    const url = `${base}${i}${port}`;
+  res.json({ status: "started" });
 
-    const ok = await check(url);
+  // 👉 фонова перевірка (НЕ блокує браузер)
+  (async () => {
+    for (let i = start; i <= end; i++) {
+      const url = `${base}${i}${port}`;
 
-    if (ok) {
-      newList.push(url);
+      const ok = await check(url);
+
+      if (ok) {
+        working.push(url);
+      }
     }
-  }
 
-  working = newList;
-  lastScan = now;
-
-  res.send({
-    status: "updated",
-    count: working.length
-  });
+    scanning = false;
+    console.log("SCAN DONE:", working.length);
+  })();
 });
 
-// 🟢 ПЛЕЙЛИСТ (тільки живі)
+// 🟢 швидкий плейлист
 app.get("/playlist", (req, res) => {
   let m3u = "#EXTM3U\n\n";
 
-  const list = working.length ? working : [];
-
-  list.forEach((url, i) => {
+  working.forEach((url, i) => {
     m3u += `#EXTINF:-1,Channel ${i + 1}\n${url}\n\n`;
   });
 
